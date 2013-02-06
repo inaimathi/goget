@@ -1,0 +1,11 @@
+.shopping-list { list-style-type: none; }
+.shopping-list li { width: 350px; }
+.shopping-list .name { width: 200px; display: inline-block; }
+.shopping-list .count { display: inline-block; width: 15px; text-align: right; }
+.shopping-list .comment { font-size: x-small; font-style: oblique; }
+
+.shopping-list li.Got span { text-decoration: line-through; color: #2b2; }
+.shopping-list li.Need span { color: #00f; }
+
+.shopping-list .controls { padding-top: 20px; }
+.shopping-list .controls input { margin: 0px; }
