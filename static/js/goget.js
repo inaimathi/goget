@@ -18,42 +18,44 @@ App.controller('GoGetCtrl', function ($scope, $http) {
 	    .success(function (data) {
 		$scope.itemList = data;
 	    })
+	    .error(function (data) {
+		console.log(data);
+	    })
     }
 
     $scope.login = function (name, pass) {
 	console.log("Sending login request...");
 	$scope.loggedIn = true;
-	$http.post("/login")
+	$http.post("/auth/login", {name : name, passphrase: pass})
 	    .success(function (data) {
 		console.log("Got login response...")
 		console.log("Sending list request...")
-		$http.get("/list").success(function (data) {
+		$http.get("/app/list").success(function (data) {
 		    console.log("Got list response...")
 		    $scope.itemList = data;
 		})
 	    })
+	    .error(function (data) {
+		console.log(data);
+	    })
     }
 
     $scope.add = function (itemName, comment, count) {
-	$http.post("/new", {itemName: itemName, comment: comment, count: count})
+	$http.post("/app/new", {itemName: itemName, comment: comment, count: count})
 	    .success(function (data) {
 		$scope.itemList = data;
 		$scope.newItem = { count: 1 }
 	    })
     }
     
-    $scope.comment = function (item, comment) {
-	$scope.itemPost("/")
-    }
-
     $scope.need = function (itemName) {
-	$scope.itemPost("/need", {itemName: itemName});
+	$scope.itemPost("/app/item/need", {itemName: itemName});
     }
     
     $scope.got = function (itemName) {
-	$scope.itemPost("/got", {itemName: itemName});
+	$scope.itemPost("/app/item/got", {itemName: itemName});
     }
 
-    $scope.login("Test", "password");
+    $scope.login("Test", "iamtheverymodelofamodernmajorgeneral");
 
 });

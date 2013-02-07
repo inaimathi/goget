@@ -1,9 +1,10 @@
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving, RecordWildCards, TemplateHaskell, TypeFamilies, OverloadedStrings #-}
  
 module Model ( initialDB
-             , authenticate, register, listAccounts, changePassword
-             , Account(..), Item(..), ItemStatus(..)
-             , listItems, insertItem, removeItem, changeItemMeta, changeItemStatus ) where
+             , listAccounts, changePassword
+             , GoGetDB(..), Account(..), Item(..), ItemStatus(..)
+             , NewAccount(..), UpdateAccount(..), AccountByName(..), GetAccounts(..)
+             , NewItem(..), DeleteItem(..), ChangeItem(..) ) where
 
 import Control.Monad.Reader (ask)
 import Control.Monad.State  (get, put)
@@ -136,27 +137,7 @@ withAccount db name fn = do
   return $ do acct <- maybeAccount
               return $ fn acct
 
-withItem :: Account -> String -> (Item -> a) -> Maybe a
-withItem account itemName fn = do
-  item <- getOne $ (accountItems account) @= itemName
-  return $ fn item
-
 ----- Account-related
-register db name passphrase = do
-  pass <- liftIO $ encryptPass defaultParams . Pass $ pack passphrase
-  existing <- query' db $ AccountByName name
-  return $ case existing of
-    Nothing -> Just $ update' db $ NewAccount name $ unEncryptedPass pass
-    Just account -> Nothing
-
-authenticate db name passphrase =
-  withAccount db name verify
-  where verify account =
-          case verifyPass defaultParams (Pass $ pack passphrase) pass of
-            (True, _) -> Just account
-            (False, _) -> Nothing
-          where pass = EncryptedPass $ accountPassphrase account
-
 changePassword db name passphrase = do
   withAccount db name change
   where change account = do
@@ -164,28 +145,3 @@ changePassword db name passphrase = do
           update' db $ UpdateAccount $ account { accountPassphrase = unEncryptedPass pass }
 
 listAccounts db = query' db $ GetAccounts
-
------ Item-related
-insertItem db name itemName comment count = withAccount db name newItem
-  where item = Item { itemName = itemName, itemComment = comment, itemCount = count, itemStatus = Need } 
-        newItem account = update' db $ NewItem account item
-
-removeItem db name itemName = withAccount db name remItem
-  where remItem account = withItem account itemName 
-                          (\i -> update' db $ DeleteItem account i) 
-
-changeItemMeta db name itemName comment count = withAccount db name cItem
-  where changed item = item { itemComment = comment, itemCount = count }
-        cItem account = withItem account itemName 
-                        (\i -> update' db $ ChangeItem account $ changed i)
- 
-changeItemStatus db name itemName status = withAccount db name cItem
-  where cItem account = withItem account itemName
-                        (\i -> update' db $ ChangeItem account $ i { itemStatus = status})
-
-listItems db name = withAccount db name lstItems
-  where lstItems account = toAscList (Proxy :: Proxy ItemStatus) $ accountItems account
-
-
-
-
