@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Util ( resOk, res404, resError, resNO, resFile, resIxItems
+            , resPlaceholder
             , serveStatic
-            , requiredPostParams ) where
+            , extractParams, withPostParams ) where
 
 import Data.String (fromString)
 import Data.Aeson
@@ -14,6 +15,7 @@ import Network.Wai
 import Network.Wai.Parse (parseRequestBody, lbsBackEnd)
 import Network.HTTP.Types (ok200, unauthorized401, status404)
 
+import Control.Monad (sequence)
 import Control.Monad.Trans.Resource (ResourceT)
 
 import Model
@@ -32,6 +34,9 @@ resNO = resError "NO -_-"
 res404 :: RES
 res404 = return $ responseLBS status404 [] $ fromString "Not Found"
 
+resPlaceholder :: RES
+resPlaceholder = return $ responseLBS status404 [] $ fromString "Not implemented yet"
+
 resError :: String -> RES
 resError message = return $ responseLBS unauthorized401 [] $ fromString message
 
@@ -48,14 +53,23 @@ serveStatic subDir fName =
   where serve mimeType = resFile mimeType $ concat ["static/", sub, "/", Text.unpack fName]
         sub = Text.unpack subDir
 
+withPostParams :: Request -> [BS.ByteString] -> ([String] -> RES) -> RES
+withPostParams req paramNames fn = do
+  res <- requiredPostParams req paramNames
+  case res of
+    Just params -> fn params
+    Nothing ->
+      resError $ concat ["Need '", paramsList, "' parameters"]
+      where paramsList = BS.unpack $ BS.intercalate "', '" paramNames
+
 requiredPostParams :: Request -> [BS.ByteString] -> ResourceT IO (Maybe [String])
 requiredPostParams request paramNames = do
   (params, _) <- parseRequestBody lbsBackEnd request
-  let fromParam name = do 
-        res <- lookup name params
-        return $ BS.unpack res
-      rec [] acc = Just $ reverse acc
-      rec (name:rest) acc = do 
-        res <- fromParam name
-        rec rest $ res:acc
-  return $ rec paramNames []
+  return $ extractParams params paramNames
+
+extractParams :: [(BS.ByteString, BS.ByteString)] -> [BS.ByteString] -> Maybe [String]
+extractParams params paramNames =
+  sequence $ map lookunpack paramNames
+  where lookunpack n = do
+          res <- lookup n params
+          return $ BS.unpack res

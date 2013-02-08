@@ -111,58 +111,45 @@ routes db session req = do
       serveStatic subDir fileName
     [] -> 
       resFile "text/html" "static/index.html"
-    ["favicon.ico"] -> res404
+    ["favicon.ico"] -> 
+      resPlaceholder
     _ -> res404
 
 authRoutes :: DB ->  LookupFN -> InsertFN -> [Text.Text] -> Request -> RES
 authRoutes db sLookup sInsert path req = do
   case path of
-    ["login"] -> do
-      res <- requiredPostParams req ["name", "passphrase"]
-      case res of
-        Just [name, passphrase] ->
-          login db sInsert name passphrase
-        _ -> resError "Need 'name', 'passphrase' parameters" 
+    ["login"] -> 
+      withPostParams req ["name", "passphrase"] auth
+      where auth [name, pass] = login db sInsert name pass
     ["register"] ->
-      res404
-    _ ->
-      res404
+      resPlaceholder
+    _ -> res404
 
 loggedInRoutes :: DB -> Maybe String -> [Text.Text] -> Request -> RES
 loggedInRoutes db maybeUserName path req = do
-  (params, _) <- parseRequestBody lbsBackEnd req
+--  (params, _) <- parseRequestBody lbsBackEnd req
   case maybeUserName of
     Just name -> do
       maybeAccount <- query' db $ AccountByName name
       case maybeAccount of
         Just user -> case path of
           ("item":rest) -> 
-            case lookup "itemName" params of
-              Just itemName -> 
-                withItemRoutes db user (BS.unpack itemName) rest req
-              _ -> 
-                resError "Need 'itemName' parameter"
+            withPostParams req ["itemName"] route
+            where route [itemName] = itemRoutes db user itemName rest req
           ["list"] -> 
             listItems db user
-          ["new"] -> do
-            res <- requiredPostParams req ["itemName", "comment", "count"]
-            case res of
-              Just [name, comment, count] -> 
-                newItem db user name comment (read count :: Integer)
-              _ -> 
-                resError "Need 'itemName', 'comment', 'count' parameters"
+          ["new"] -> 
+            withPostParams req ["itemName", "comment", "count"] new
+            where new [name, comment, count] = newItem db user name comment (read count :: Integer)
           ["change-passphrase"] -> 
-            case lookup "newPassphrase" params of
-              Just newPass ->
-                changePassphrase db user $ BS.unpack newPass
-              _ -> resError "Need 'newPassphrase' parameter"
-          _ -> 
-            res404
+            withPostParams req ["newPassphrase"] change
+            where change [newPass] = changePassphrase db user newPass
+          _ -> res404
         Nothing -> resError "Invalid user"
     Nothing -> resError "Not Logged In"
 
-withItemRoutes :: DB -> Account -> String -> [Text.Text] -> Request -> RES
-withItemRoutes db user itemName path req = do
+itemRoutes :: DB -> Account -> String -> [Text.Text] -> Request -> RES
+itemRoutes db user itemName path req = do
   case getOne $ (accountItems user) @= itemName of
     Just item -> case path of
       ["need"] -> 
@@ -172,7 +159,7 @@ withItemRoutes db user itemName path req = do
       ["delete"] -> 
         deleteItem db user item
       _ -> res404
-    Nothing -> res404
+    Nothing -> resError "Invalid item"
 
 ----- Server start
 main = do
