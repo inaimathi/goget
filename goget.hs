@@ -42,7 +42,7 @@ type InsertFN = (String -> String -> ResourceT IO ())
 ---------- HTTP Handlers
 listItems :: DB -> Account -> RES
 listItems db user = do
-  resOk $ toAscList (Proxy :: Proxy ItemStatus) $ accountItems user
+  resIxItems  $ accountItems user
 
 needItem :: DB -> Account -> Item -> RES
 needItem db user item = do
@@ -69,17 +69,17 @@ newItem db user name comment count = do
 
 changePassphrase :: DB -> Account -> String -> RES
 changePassphrase db user newPassphrase = do
-  new <- liftIO $ encryptPass defaultParams . Pass $ BS.pack newPassphrase
-  update' db $ UpdateAccount $ user { accountPassphrase = unEncryptedPass new }
+  new <- liftIO . encryptPass defaultParams . Pass $ BS.pack newPassphrase
+  update' db . UpdateAccount $ user { accountPassphrase = unEncryptedPass new }
   resOk user
 
 register :: DB -> InsertFN -> String -> String -> RES
 register db sessionInsert name passphrase = do
-  pass <- liftIO $ encryptPass defaultParams . Pass $ BS.pack passphrase
+  pass <- liftIO . encryptPass defaultParams . Pass $ BS.pack passphrase
   existing <- query' db $ AccountByName name
   case existing of
     Nothing -> do
-      acct <- update' db $ NewAccount name $ unEncryptedPass pass
+      acct <- update' db . NewAccount name $ unEncryptedPass pass
       sessionInsert "user" name
       resOk acct
     _ -> resNO
@@ -166,4 +166,4 @@ main = do
   session <- Vault.newKey
   store <- mapStore_
   bracket (openLocalState initialDB) (createCheckpointAndClose) 
-    (\db -> run 3000 $ withSession store (fromString "SESSION") def session $ routes db session)
+    (\db -> run 3000 . withSession store (fromString "SESSION") def session $ routes db session)
