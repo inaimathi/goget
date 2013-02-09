@@ -18,10 +18,8 @@ import Network.HTTP.Types (ok200, unauthorized401, status404)
 import Control.Monad (sequence, liftM)
 import Control.Monad.Trans.Resource (ResourceT)
 
+import TypeSynonyms
 import Model
-
-type RES = ResourceT IO Response
-type BSAssoc = [(BS.ByteString, BS.ByteString)]
 
 resIxItems :: IxSet Item -> RES
 resIxItems body = resOk $ toAscList (Proxy :: Proxy ItemStatus) $ body
