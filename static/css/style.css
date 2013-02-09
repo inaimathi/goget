@@ -9,3 +9,9 @@
 
 .shopping-list .controls { padding-top: 20px; }
 .shopping-list .controls input { margin: 0px; }
+
+.user-form .error { padding: 10px; background-color: #faa; color: #f22; margin-bottom: 10px; border: 1px solid #f22; border-radius: 5px; }
+
+.user-form { margin: 10px; width: 220px; }
+.user-form .register { line-height: 32px; padding: 5px; }
+.user-form .login { float: right; }

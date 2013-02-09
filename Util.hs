@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Util ( resOk, res404, resError, resNO, resFile, resIxItems
+module Util ( resOk, res404, resError, resNO, resFile, resIxItems, serveStatic
             , resPlaceholder
-            , serveStatic
-            , extractParams, withPostParams ) where
+            , extractOptional, withParams, withPostParams 
+            , maybeRead) where
 
 import Data.String (fromString)
 import Data.Aeson
@@ -15,12 +15,13 @@ import Network.Wai
 import Network.Wai.Parse (parseRequestBody, lbsBackEnd)
 import Network.HTTP.Types (ok200, unauthorized401, status404)
 
-import Control.Monad (sequence)
+import Control.Monad (sequence, liftM)
 import Control.Monad.Trans.Resource (ResourceT)
 
 import Model
 
 type RES = ResourceT IO Response
+type BSAssoc = [(BS.ByteString, BS.ByteString)]
 
 resIxItems :: IxSet Item -> RES
 resIxItems body = resOk $ toAscList (Proxy :: Proxy ItemStatus) $ body
@@ -55,21 +56,33 @@ serveStatic subDir fName =
 
 withPostParams :: Request -> [BS.ByteString] -> ([String] -> RES) -> RES
 withPostParams req paramNames fn = do
-  res <- requiredPostParams req paramNames
-  case res of
-    Just params -> fn params
+  (params, _) <- parseRequestBody lbsBackEnd req
+  withParams params paramNames fn
+
+withParams :: BSAssoc -> [BS.ByteString] -> ([String] -> RES) -> RES
+withParams params paramNames fn = 
+  case extractParams params paramNames of
+    Just paramVals -> 
+      fn paramVals
     Nothing ->
       resError $ concat ["Need '", paramsList, "' parameters"]
       where paramsList = BS.unpack $ BS.intercalate "', '" paramNames
 
-requiredPostParams :: Request -> [BS.ByteString] -> ResourceT IO (Maybe [String])
-requiredPostParams request paramNames = do
-  (params, _) <- parseRequestBody lbsBackEnd request
-  return $ extractParams params paramNames
-
-extractParams :: [(BS.ByteString, BS.ByteString)] -> [BS.ByteString] -> Maybe [String]
-extractParams params paramNames =
-  sequence $ map lookunpack paramNames
-  where lookunpack n = do
-          res <- lookup n params
+extractOptional :: BSAssoc -> [BS.ByteString] -> [Maybe String]
+extractOptional  params paramNames = map lookunpack paramNames
+  where lookunpack k = do
+          res <- lookup k params
           return $ BS.unpack res
+
+extractParams :: BSAssoc -> [BS.ByteString] -> Maybe [String]
+extractParams params paramNames = do
+  res <- allLookups params paramNames
+  return $ map BS.unpack res
+
+maybeRead :: Read a => Maybe String -> Maybe a
+maybeRead str = do
+  res <- str
+  return $ read res
+
+allLookups :: Eq a => [(a, a)] -> [a] -> Maybe [a]
+allLookups assoc keys = sequence $ map (\k -> lookup k assoc) keys

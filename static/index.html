@@ -7,13 +7,15 @@
   <body ng-app="goget">
     
     <div ng-controller="GoGetCtrl">
-      <div ng-show="!loggedIn">
+      <div ng-show="!user.loggedIn" class="user-form">
+	<div ng-show="authError" class="error">{{authError}}</div>
 	<input type="text" placeholder="User Name" ng-model="user.name" />
 	<input type="password" placeholder="Passphrase" ng-model="user.passphrase" />
-	<button class="btn" ng-click="login(user.name, user.passphrase)"><i class="icon-check"></i> Login</button>
+	<a class="register" ng-click="register(user.name, user.passphrase)">Register</a>
+	<button class="btn login" ng-click="login(user.name, user.passphrase)"><i class="icon-check"></i> Login</button>
       </div>
-
-      <ul ng-show="loggedIn" class="shopping-list">
+	
+      <ul ng-show="user.loggedIn" class="shopping-list">
 	<li class="{{itm.status}}" ng-repeat="itm in itemList"
 	    ng-mouseover="itm.hovered = true" ng-mouseout="itm.hovered = false">
 	  <span class="count">{{itm.count}}x</span> 

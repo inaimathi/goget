@@ -38,8 +38,10 @@ type DB = AcidState GoGetDB
 type RES = ResourceT IO Response
 type LookupFN = (String -> ResourceT IO (Maybe String))
 type InsertFN = (String -> String -> ResourceT IO ())
+type BSAssoc = [(BS.ByteString, BS.ByteString)]
 
 ---------- HTTP Handlers
+----- Item Related
 listItems :: DB -> Account -> RES
 listItems db user = do
   resIxItems  $ accountItems user
@@ -56,6 +58,14 @@ gotItem db user item = do
   resIxItems $ updateIx (itemName item) new (accountItems user)
     where new = item { itemStatus = Got }
 
+editItem :: DB -> Account -> Item -> Maybe String -> Maybe String -> RES
+editItem db user item newComment newCount = do
+  update' db $ ChangeItem user new
+  resIxItems $ updateIx (itemName item) new (accountItems user)
+    where new = item { itemComment = comment, itemCount = count }
+          comment = fromMaybe (itemComment item) newComment
+          count = fromMaybe (itemCount item) (maybeRead newCount :: Maybe Integer)
+
 deleteItem :: DB -> Account -> Item -> RES
 deleteItem db user item = do
   update' db $ DeleteItem user item
@@ -67,6 +77,7 @@ newItem db user name comment count = do
   resIxItems $ insert item (accountItems user)
   where item = Item { itemName=name, itemComment=comment, itemCount=count, itemStatus=Need }
 
+----- Account Related
 changePassphrase :: DB -> Account -> String -> RES
 changePassphrase db user newPassphrase = do
   new <- liftIO . encryptPass defaultParams . Pass $ BS.pack newPassphrase
@@ -82,7 +93,7 @@ register db sessionInsert name passphrase = do
       acct <- update' db . NewAccount name $ unEncryptedPass pass
       sessionInsert "user" name
       resOk acct
-    _ -> resNO
+    _ -> resError "User already exists"
 
 login :: DB -> InsertFN -> String -> String -> RES
 login db sessionInsert name passphrase = do 
@@ -117,39 +128,42 @@ routes db session req = do
 
 authRoutes :: DB ->  LookupFN -> InsertFN -> [Text.Text] -> Request -> RES
 authRoutes db sLookup sInsert path req = do
-  case path of
-    ["login"] -> 
-      withPostParams req ["name", "passphrase"] auth
-      where auth [name, pass] = login db sInsert name pass
-    ["register"] ->
-      resPlaceholder
-    _ -> res404
+  withPostParams req ["name", "passphrase"] route
+  where route [name, pass] = 
+          case path of
+            ["login"] -> 
+              login db sInsert name pass
+            ["register"] -> 
+              case pass of
+                "" -> resError "At least pick a non-empty passphrase"
+                _  -> register db sInsert name pass
+            _ -> res404
 
 loggedInRoutes :: DB -> Maybe String -> [Text.Text] -> Request -> RES
 loggedInRoutes db maybeUserName path req = do
---  (params, _) <- parseRequestBody lbsBackEnd req
+  (params, _) <- parseRequestBody lbsBackEnd req
   case maybeUserName of
     Just name -> do
       maybeAccount <- query' db $ AccountByName name
       case maybeAccount of
         Just user -> case path of
           ("item":rest) -> 
-            withPostParams req ["itemName"] route
-            where route [itemName] = itemRoutes db user itemName rest req
+            withParams params ["itemName"] route
+            where route [itemName] = itemRoutes db user itemName rest params
           ["list"] -> 
             listItems db user
           ["new"] -> 
-            withPostParams req ["itemName", "comment", "count"] new
+            withParams params ["itemName", "comment", "count"] new
             where new [name, comment, count] = newItem db user name comment (read count :: Integer)
           ["change-passphrase"] -> 
-            withPostParams req ["newPassphrase"] change
+            withParams params ["newPassphrase"] change
             where change [newPass] = changePassphrase db user newPass
           _ -> res404
         Nothing -> resError "Invalid user"
     Nothing -> resError "Not Logged In"
 
-itemRoutes :: DB -> Account -> String -> [Text.Text] -> Request -> RES
-itemRoutes db user itemName path req = do
+itemRoutes :: DB -> Account -> String -> [Text.Text] -> BSAssoc -> RES
+itemRoutes db user itemName path params = do
   case getOne $ (accountItems user) @= itemName of
     Just item -> case path of
       ["need"] -> 
@@ -158,6 +172,9 @@ itemRoutes db user itemName path req = do
         gotItem db user item
       ["delete"] -> 
         deleteItem db user item
+      ["edit"] ->
+        edit $ extractOptional params ["comment", "count"]
+        where edit [comment, count] = editItem db user item comment count
       _ -> res404
     Nothing -> resError "Invalid item"
 

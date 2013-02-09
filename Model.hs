@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving, RecordWildCards, TemplateHaskell, TypeFamilies, OverloadedStrings #-}
  
 module Model ( initialDB
-             , listAccounts, changePassword
              , GoGetDB(..), Account(..), Item(..), ItemStatus(..)
              , NewAccount(..), UpdateAccount(..), AccountByName(..), GetAccounts(..)
              , NewItem(..), DeleteItem(..), ChangeItem(..) ) where
@@ -120,6 +119,7 @@ getAccounts = do
   return $ toAscList (Proxy :: Proxy AccountId) accounts
 
 getAccount :: (Typeable a) => a -> Query GoGetDB (Maybe Account)
+-- separate so we can get accounts by something else at some point in the future
 getAccount ix = do
   GoGetDB{..} <- ask
   return $ getOne $ accounts @= ix
@@ -128,20 +128,3 @@ accountByName :: String -> Query GoGetDB (Maybe Account)
 accountByName name = getAccount name
 
 makeAcidic ''GoGetDB [ 'newAccount, 'newItem, 'deleteItem, 'changeItem, 'updateAccount, 'accountByName, 'getAccounts ]
-
----------- External API
------ Utility
-withAccount :: MonadIO m => AcidState GoGetDB -> String -> (Account -> a) -> m (Maybe a)
-withAccount db name fn = do
-  maybeAccount <- query' db $ AccountByName name
-  return $ do acct <- maybeAccount
-              return $ fn acct
-
------ Account-related
-changePassword db name passphrase = do
-  withAccount db name change
-  where change account = do
-          pass <- liftIO $ encryptPass defaultParams . Pass $ pack passphrase
-          update' db $ UpdateAccount $ account { accountPassphrase = unEncryptedPass pass }
-
-listAccounts db = query' db $ GetAccounts
