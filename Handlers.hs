@@ -24,29 +24,28 @@ listItems db user = do
   resIxItems  $ accountItems user
 
 needItem :: DB -> Account -> Item -> RES
-needItem db user item = do
-  update' db $ ChangeItem user new
-  resIxItems $ updateIx (itemName item) new (accountItems user) 
-    where new = item { itemStatus = Need }
+needItem db user item = updateItem db user new
+  where new = item { itemStatus = Need }
 
 gotItem :: DB -> Account -> Item -> RES
-gotItem db user item = do
-  update' db $ ChangeItem user new
-  resIxItems $ updateIx (itemName item) new (accountItems user)
-    where new = item { itemStatus = Got }
+gotItem db user item = updateItem db user new
+  where new = item { itemStatus = Got }
 
 editItem :: DB -> Account -> Item -> Maybe String -> Maybe String -> RES
-editItem db user item newComment newCount = do
-  update' db $ ChangeItem user new
-  resIxItems $ updateIx (itemName item) new (accountItems user)
-    where new = item { itemComment = comment, itemCount = count }
-          comment = fromMaybe (itemComment item) newComment
-          count = fromMaybe (itemCount item) (maybeRead newCount :: Maybe Integer)
+editItem db user item newComment newCount = updateItem db user new
+  where new = item { itemComment = comment, itemCount = count }
+        comment = fromMaybe (itemComment item) newComment
+        count = fromMaybe (itemCount item) (maybeRead newCount :: Maybe Integer)
 
 deleteItem :: DB -> Account -> Item -> RES
 deleteItem db user item = do
   update' db $ DeleteItem user item
   resIxItems $ delete item (accountItems user)
+
+updateItem :: DB -> Account -> Item -> RES
+updateItem db user newItem = do
+  update' db $ ChangeItem user newItem
+  resIxItems $ updateIx (itemName newItem) newItem (accountItems user)
 
 newItem :: DB -> Account -> String -> String -> Integer -> RES
 newItem db user name comment count =

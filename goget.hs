@@ -14,7 +14,7 @@ import Data.IxSet ((@=), Proxy(..), getOne)
 
 import Network.Wai
 import Network.Wai.Parse (parseRequestBody, lbsBackEnd)
-import Network.Wai.Session (withSession, Session)
+import Network.Wai.Session (withSession)
 import Network.Wai.Session.Map (mapStore_)
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.EventSource (ServerEvent (..), eventSourceAppChan)
@@ -29,7 +29,7 @@ import Util
 import Model
 import Handlers
 
-routes :: DB -> Vault.Key (Session (ResourceT IO) String String) -> Request -> RES
+routes :: DB -> SessionStore -> Request -> RES
 routes db session req = do
   let Just (sessionLookup, sessionInsert) = Vault.lookup session (vault req)
   user <- sessionLookup "user"
