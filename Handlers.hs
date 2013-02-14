@@ -1,4 +1,4 @@
-module Handlers ( listItems, needItem, gotItem, editItem, deleteItem, newItem
+module Handlers ( listItems, needItem, gotItem, commentItem, countItem, deleteItem, newItem
                 , changePassphrase, register, login ) where
 
 import Control.Monad.Trans  (liftIO)
@@ -36,21 +36,15 @@ commentItem db user item newComment = updateItem db user $ item { itemComment = 
 countItem :: DB -> Account -> Item -> Integer -> RES
 countItem db user item newCount = updateItem db user $ item { itemCount = newCount }
 
-editItem :: DB -> Account -> Item -> Maybe String -> Maybe String -> RES
-editItem db user item newComment newCount = updateItem db user new
-  where new = item { itemComment = comment, itemCount = count }
-        comment = fromMaybe (itemComment item) newComment
-        count = fromMaybe (itemCount item) (maybeRead newCount :: Maybe Integer)
+updateItem :: DB -> Account -> Item -> RES
+updateItem db user newItem = do
+  update' db $ ChangeItem user newItem
+  resIxItems $ updateIx (itemName newItem) newItem (accountItems user)
 
 deleteItem :: DB -> Account -> Item -> RES
 deleteItem db user item = do
   update' db $ DeleteItem user item
   resIxItems $ delete item (accountItems user)
-
-updateItem :: DB -> Account -> Item -> RES
-updateItem db user newItem = do
-  update' db $ ChangeItem user newItem
-  resIxItems $ updateIx (itemName newItem) newItem (accountItems user)
 
 newItem :: DB -> Account -> String -> String -> Integer -> RES
 newItem db user name comment count =
