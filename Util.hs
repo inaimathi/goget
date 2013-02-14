@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Util ( resOk, res404, resError, resNO, resFile, resIxItems, serveStatic
             , resPlaceholder
-            , extractOptional, withParams, withPostParams 
-            , maybeRead) where
+            , extractOptional, withParams, withPostParams) where
 
 import Data.String (fromString)
 import Data.Aeson
@@ -76,11 +75,6 @@ extractParams :: BSAssoc -> [BS.ByteString] -> Maybe [String]
 extractParams params paramNames = do
   res <- allLookups params paramNames
   return $ map BS.unpack res
-
-maybeRead :: Read a => Maybe String -> Maybe a
-maybeRead str = do
-  res <- str
-  return $ read res
 
 allLookups :: Eq a => [(a, a)] -> [a] -> Maybe [a]
 allLookups assoc keys = sequence $ map (\k -> lookup k assoc) keys

@@ -91,9 +91,13 @@ itemRoutes db user itemName path params = do
         gotItem db user item
       ["delete"] -> 
         deleteItem db user item
-      ["edit"] ->
-        edit $ extractOptional params ["comment", "count"]
-        where edit [comment, count] = editItem db user item comment count
+      ["comment"] ->
+        withParams params ["comment"] $ commentItem db user item . head
+      ["count"] -> 
+        withParams params ["count"] changeCount
+        where changeCount [ct] = case reads ct :: [(Integer, String)] of
+                (count, _):_ -> countItem db user item count
+                _ -> resError "Count needs to be readable as a number"
       _ -> res404
     Nothing -> resError "Invalid item"
 
