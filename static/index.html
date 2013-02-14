@@ -4,31 +4,42 @@
     <meta charset="UTF-8" />
     <title>GoGet - Because I Can't Be Expected to Remember This Shit</title>
   </head>
-  <body ng-app="goget">
-    
-    <div ng-controller="GoGetCtrl">
-      <div ng-show="!user.loggedIn" class="user-form">
-	<div ng-show="authError" class="error">{{authError}}</div>
-	<input type="text" placeholder="User Name" ng-model="user.name" />
-	<input type="password" placeholder="Passphrase" ng-model="user.passphrase" />
-	<a class="register" ng-click="register(user.name, user.passphrase)">Register</a>
-	<button class="btn login" ng-click="login(user.name, user.passphrase)"><i class="icon-check"></i> Login</button>
+  <body> 
+
+    <!-- templates -->
+    <script id="tmp-item" type="text/x-handlebars-template">
+      <li class="{{status}}">
+	<span class="count">{{count}}x</span>
+	<span class="name">{{name}}</span>
+	{{#controls this}}{{/controls}}
+	<!-- <p class="comment">{{comment}}</p> -->
+      </li>
+    </script>
+
+    <script id="tmp-item-controls" type="text/x-handlebars-template">
+      <button class="btn" onclick="goget.{{fn}}(jQuery(this).siblings('.name').text())"><i class="{{iconClass}}"></i></button>
+    </script>
+
+    <!-- body -->
+    <div>
+      <div class="user-form">
+	<div class="error"></div>
+	<input type="text" class="user-name" placeholder="User Name" />
+	<input type="password" class="passphrase" placeholder="Passphrase" />
+	<a class="register" onclick="util.applyToUser(goget.register)">Register</a>
+	<button class="btn login" onclick="util.applyToUser(goget.login)">
+	  <i class="icon-check"></i> Login
+	</button>
       </div>
-	
-      <ul ng-show="user.loggedIn" class="shopping-list">
-	<li class="{{itm.status}}" ng-repeat="itm in itemList"
-	    ng-mouseover="itm.hovered = true" ng-mouseout="itm.hovered = false">
-	  <span class="count">{{itm.count}}x</span> 
-	  <span class="name">{{itm.name}}</span> 
-	  <button class="btn" ng-click="got(itm.name)" ng-show="itm.status=='Need'"><i class="icon-check"></i></button>
-	  <button class="btn" ng-click="need(itm.name)" ng-show="itm.status=='Got'"><i class="icon-exclamation-sign"></i></button>
-	  <p class="comment" ng-show="itm.hovered">{{itm.comment}}</p>
-	</li>
+
+      <ul class="shopping-list">
+      </ul>
+      <ul class="shopping-list-controls">
 	<li class="controls">
-	  <input type="text" placeholder="Item Name" ng-model="newItem.name" /> 
-	  <input type="text" placeholder="Comment" ng-model="newItem.comment" />
-	  <input type="text" placeholder="Count" ng-model="newItem.count">
-	  <button class="btn" ng-click="add(newItem.name, newItem.comment, newItem.count)"><i class="icon-plus"></i></button>
+	  <input type="text" class="name" placeholder="Item Name" /> 
+	  <input type="text" class="comment" placeholder="Comment" />
+	  <input type="text" class="count" placeholder="Count" value="1" />
+	  <button class="btn" onclick="util.applyToVals(goget.add, '.controls ', ['.name', '.comment', '.count'])"><i class="icon-plus"></i></button>
 	</li>
       </ul>
     </div>
@@ -45,7 +56,8 @@
     <!-- Scripts -->
     <!-- ------- -->
     <script src="/static/js/underscore-min.js" type="text/javascript"></script>
-    <script src="/static/js/angular.min.js" type="text/javascript"></script>    
+    <script src="/static/js/handlebars.js" type="text/javascript"></script>    
+    <script src="/static/js/jquery.min.js" type="text/javascript"></script>    
     
     <script src="/static/js/goget.js" type="text/javascript"></script>
   </body>

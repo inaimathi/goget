@@ -1,63 +1,78 @@
-var App = angular.module("goget", [])
-    .config(function ($httpProvider) {
-	/// Angular's post doesn't do the correct default thing with POST parameters
-	$httpProvider.defaults.headers.post['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8';
-	$httpProvider.defaults.transformRequest = function(data){
-            return _.map(data, function (val, k) { return encodeURIComponent(k) + "=" + encodeURIComponent(val); }).join("&");
-	}
-    });
-
-App.controller('GoGetCtrl', function ($scope, $http) {
-    $scope.itemList = [];
-    $scope.newItem = { count: 1 };
-    $scope.user = { id: false, loggedIn: false, passphrase: "" };
-
-    function itemPost (uri, params) {
-	$http.post(uri, params)
-	    .success(function (data) {
-		$scope.itemList = data;
-	    })
-	    .error(function (data) {
-		console.log(data);
-	    })
+var util = {
+    hcompile: function (template) {
+	return Handlebars.compile($("#tmp-" + template).html())
+    },
+    vals: function (listOfDOMSelectors) {
+	return _.map(listOfDOMSelectors, function (s) { return $(s).val() })
+    },
+    under: function (DOMContext, listOfDOMSelectors) {
+	return _.map(listOfDOMSelectors, function (s) { return DOMContext + s })
+    },
+    applyToVals: function (fn, DOMContext, listOfDOMSelectors) {
+	return fn.apply({}, util.vals(util.under(DOMContext, listOfDOMSelectors)));
+    },
+    applyToUser: function (fn) {
+	return util.applyToVals(fn, '.user-form ', ['.user-name', '.passphrase']);
     }
+}
 
-    function userPost (uri, params) {
-	console.log("Sending " + uri + " request...")
-	$http.post(uri, params)
-	    .success(function (data) {
-		$scope.user.id = data.id;
-		$scope.user.loggedIn = true;
-		$scope.itemList = data.items;
-	    })
-	    .error(function (data) {
-		$scope.authError = data;
-		console.log(data)
-	    })
+Handlebars.registerHelper("controls", function (anItem) {
+    if (anItem.status == 'Got') {
+	var ctrl = {fn: 'need', iconClass: "icon-exclamation-sign"}
+    } else {
+	var ctrl = {fn: 'got', iconClass: "icon-check"}
     }
+    return new Handlebars.SafeString(templates.itemButtons(ctrl));
+})
 
-    $scope.login = function (name, pass) {
-	userPost("/auth/login", {name : name, passphrase: pass});
-    }
+var templates = {
+    item: util.hcompile("item"),
+    itemButtons: util.hcompile("item-controls")
+}
 
-    $scope.register = function (name, pass) {
-	userPost("/auth/register", {name : name, passphrase: pass});
-    }
-
-    $scope.add = function (itemName, comment, count) {
-	$http.post("/app/new", {itemName: itemName, comment: comment, count: count})
-	    .success(function (data) {
-		$scope.itemList = data;
-		$scope.newItem = { count: 1 }
+var goget = {
+    render: function (itemList) {
+	$(".shopping-list-controls").show()
+	$(".shopping-list").empty();
+	$.each(itemList, function (ix, anItem) {
+	    $(".shopping-list").append(templates.item(anItem));
+	})
+    },
+    itemPost: function (uri, params) {
+	$.post(uri, params)
+	    .done(function (data, textStatus, jqXHR) {
+		goget.render($.parseJSON(jqXHR.responseText))
 	    })
+	    .fail(function (data, textStatus, jqXHR) {
+		console.log(["Failed!", data, textStatus, jqXHR])
+		// something odd happened; either invalid item, or failed connection
+	    })
+    },
+    userPost: function (uri, params) {
+	$.post(uri, params)
+	    .done(function (data, textStatus, jqXHR) {
+		$(".user-form").hide();
+		goget.render($.parseJSON(jqXHR.responseText).items);
+	    })
+	    .fail(function (data) {
+		console.log(["Failed!", data.responseText])
+		$(".user-form .error").text(data.responseText).show()
+	    })
+    },
+    login: function (name, pass) {
+	goget.userPost("/auth/login", { name: name, passphrase: pass });
+    },
+    register: function (name, pass) {
+	goget.userPost("/auth/register", { name: name, passphrase: pass });
+    },
+    add: function (itemName, comment, count) {
+	goget.itemPost("/app/new", {itemName: itemName, comment: comment, count: count})
+    },
+    need: function (itemName) {
+	goget.itemPost("/app/item/need", {itemName: itemName});
+    },
+    got: function (itemName) {
+	goget.itemPost("/app/item/got", {itemName: itemName});
     }
     
-    $scope.need = function (itemName) {
-	itemPost("/app/item/need", {itemName: itemName});
-    }
-    
-    $scope.got = function (itemName) {
-	itemPost("/app/item/got", {itemName: itemName});
-    }
-
-});
+}
