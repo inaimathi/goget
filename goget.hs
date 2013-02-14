@@ -73,7 +73,9 @@ loggedInRoutes db maybeUserName path req = do
             listItems db user
           ["new"] -> 
             withParams params ["itemName", "comment", "count"] new
-            where new [name, comment, count] = newItem db user name comment (read count :: Integer)
+            where new [name, comment, ct] = case reads ct :: [(Integer, String)] of
+                    (count, _):_ -> newItem db user name comment count
+                    _ -> resError "Count needs to be readable as an Integer"
           ["change-passphrase"] -> 
             withParams params ["newPassphrase"] change
             where change [newPass] = changePassphrase db user newPass
@@ -97,7 +99,7 @@ itemRoutes db user itemName path params = do
         withParams params ["count"] changeCount
         where changeCount [ct] = case reads ct :: [(Integer, String)] of
                 (count, _):_ -> countItem db user item count
-                _ -> resError "Count needs to be readable as a number"
+                _ -> resError "Count needs to be readable as an Integer"
       _ -> res404
     Nothing -> resError "Invalid item"
 
