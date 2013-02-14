@@ -8,7 +8,7 @@ import qualified Data.Text as Text
 import qualified Data.Vault as Vault
 
 import Data.Acid (AcidState, Update, Query, makeAcidic, openLocalState)
-import Data.Acid.Advanced (update', query')
+import Data.Acid.Advanced (query')
 import Data.Acid.Local (createCheckpointAndClose)
 import Data.IxSet ((@=), Proxy(..), getOne)
 
@@ -17,7 +17,6 @@ import Network.Wai.Parse (parseRequestBody, lbsBackEnd)
 import Network.Wai.Session (withSession)
 import Network.Wai.Session.Map (mapStore_)
 import Network.Wai.Handler.Warp (run)
-import Network.Wai.EventSource (ServerEvent (..), eventSourceAppChan)
 import Network.HTTP.Types (ok200, unauthorized401, status404)
 
 import Control.Exception (bracket)

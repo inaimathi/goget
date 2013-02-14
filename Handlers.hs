@@ -17,6 +17,7 @@ import TypeSynonyms
 import Util
 import Model
 
+
 ---------- HTTP Handlers
 ----- Item Related
 listItems :: DB -> Account -> RES
@@ -24,12 +25,16 @@ listItems db user = do
   resIxItems  $ accountItems user
 
 needItem :: DB -> Account -> Item -> RES
-needItem db user item = updateItem db user new
-  where new = item { itemStatus = Need }
+needItem db user item = updateItem db user $ item { itemStatus = Need }
 
 gotItem :: DB -> Account -> Item -> RES
-gotItem db user item = updateItem db user new
-  where new = item { itemStatus = Got }
+gotItem db user item = updateItem db user $ item { itemStatus = Got }
+
+commentItem :: DB -> Account -> Item -> String -> RES
+commentItem db user item newComment = updateItem db user $ item { itemComment = newComment }
+
+countItem :: DB -> Account -> Item -> Integer -> RES
+countItem db user item newCount = updateItem db user $ item { itemCount = newCount }
 
 editItem :: DB -> Account -> Item -> Maybe String -> Maybe String -> RES
 editItem db user item newComment newCount = updateItem db user new
